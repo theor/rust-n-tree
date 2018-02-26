@@ -11,7 +11,7 @@ use self::test::Bencher;
 use self::rand::{random, XorShiftRng, Rng};
 
 use self::fixtures::{QuadTreeRegion, Vec2};
-use {NTree, Region};
+use {NTree};
 
 #[test]
 fn test_contains() {
@@ -24,6 +24,15 @@ fn test_insert() {
     let mut ntree = NTree::new(QuadTreeRegion::square(0.0, 0.0, 100.0), 4);
     assert!(ntree.insert(Vec2 { x: 50.0, y: 50.0 }));
     assert_eq!(ntree.nearby(&Vec2 { x: 40.0, y: 40.0 }), Some(&[Vec2 { x: 50.0, y: 50.0 }] as &[_]));
+}
+
+
+#[test]
+fn test_remove() {
+    let mut ntree = NTree::new(QuadTreeRegion::square(0.0, 0.0, 100.0), 4);
+    ntree.insert(Vec2 { x: 50.0, y: 50.0 });
+    assert!(ntree.remove(&Vec2 { x: 50.0, y: 50.0 }));
+    assert_eq!(ntree.nearby(&Vec2 { x: 40.0, y: 40.0 }), Some(&[] as &[_]));
 }
 
 #[test]

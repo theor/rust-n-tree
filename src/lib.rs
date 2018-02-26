@@ -37,12 +37,12 @@ pub trait Region<P>: Clone {
 /// allowing this structure to be used to index data by any number
 /// of attributes and quickly query for data that falls within a
 /// specific range.
-pub struct NTree<R, P> {
+pub struct NTree<R, P:PartialEq> {
     region: R,
     kind: NTreeVariant<R, P>
 }
 
-enum NTreeVariant<R, P> {
+enum NTreeVariant<R, P:PartialEq> {
     /// A leaf of the tree, which contains points.
     Bucket {
         points: Vec<P>,
@@ -54,7 +54,7 @@ enum NTreeVariant<R, P> {
     }
 }
 
-impl<P, R: Region<P>> NTree<R, P> {
+impl<P:PartialEq, R: Region<P>> NTree<R, P> {
     /// Create a new n-tree which contains points within
     /// the region and whose buckets are limited to the passed-in size.
     ///
@@ -101,6 +101,33 @@ impl<P, R: Region<P>> NTree<R, P> {
         true
     }
 
+    /// remove
+    pub fn remove(&mut self, point: &P) -> bool {
+        if !self.region.contains(&point) { return false }
+
+        match self.kind {
+            Bucket { ref mut points, .. } => {
+                match points.iter().position(|x|{x == point}) {
+                    None => false,
+                    Some(idx) => {
+                        points.swap_remove(idx);
+                        if points.len() as u8 == 0 {
+                            // Bucket is empty
+                            // merge(self, point);
+                        }
+                        true
+                    },
+                }
+            },
+            Branch { ref mut subregions } => {
+                match subregions.iter_mut().find(|r| r.contains(&point)) {
+                    Some(ref mut subregion) => return subregion.remove(point),
+                    None => return false
+                }
+            }
+        }
+    }
+
     /// Get all the points which within the queried region.
     ///
     /// Finds all points which are located in regions overlapping
@@ -139,7 +166,7 @@ impl<P, R: Region<P>> NTree<R, P> {
     }
 }
 
-fn split_and_insert<P, R: Region<P>>(bucket: &mut NTree<R, P>, point: P) {
+fn split_and_insert<P:PartialEq, R: Region<P>>(bucket: &mut NTree<R, P>, point: P) {
     let old_points;
     let old_bucket_limit;
 
@@ -170,13 +197,13 @@ fn split_and_insert<P, R: Region<P>>(bucket: &mut NTree<R, P>, point: P) {
 // maintaining (a) the sequence of points at the current level
 // (possibly empty), and (b) stack of iterators over the remaining
 // children of the parents of the current point.
-pub struct RangeQuery<'t,'q, R: 'q + 't, P: 't> {
+pub struct RangeQuery<'t,'q, R: 'q + 't, P: 't+PartialEq> {
     query: &'q R,
     points: slice::Iter<'t, P>,
     stack: Vec<slice::Iter<'t, NTree<R, P>>>
 }
 
-impl<'t, 'q, R: Region<P>, P> Iterator for RangeQuery<'t, 'q, R, P> {
+impl<'t, 'q, R: Region<P>, P: PartialEq> Iterator for RangeQuery<'t, 'q, R, P> {
     type Item = &'t P;
 
     fn next(&mut self) -> Option<&'t P> {
