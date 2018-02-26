@@ -78,7 +78,7 @@ impl<P:PartialEq, R: Region<P>> NTree<R, P> {
 
     /// Insert a point into the n-tree, returns true if the point
     /// is within the n-tree and was inserted and false if not.
-    fn insert(&mut self, point: P) -> bool {
+    pub fn insert(&mut self, point: P) -> bool {
         if !self.region.contains(&point) { return false }
         let mut current_node = self;
         loop{
@@ -111,25 +111,32 @@ impl<P:PartialEq, R: Region<P>> NTree<R, P> {
     /// remove
     pub fn remove(&mut self, point: &P) -> bool {
         if !self.region.contains(&point) { return false }
-
-        match self.kind {
-            Bucket { ref mut points, .. } => {
-                match points.iter().position(|x|{x == point}) {
-                    None => false,
-                    Some(idx) => {
-                        points.swap_remove(idx);
-                        if points.len() as u8 == 0 {
-                            // Bucket is empty
-                            // merge(self, point);
-                        }
-                        true
-                    },
-                }
-            },
-            Branch { ref mut subregions } => {
-                match subregions.iter_mut().find(|r| r.contains(&point)) {
-                    Some(ref mut subregion) => return subregion.remove(point),
-                    None => return false
+        let mut current_node = self;
+        loop{
+            match {current_node} {
+                &mut NTree {region: _, kind: Branch { ref mut subregions }} => {
+                    current_node = subregions
+                        .iter_mut()
+                        .find(|sub_node| sub_node.region.contains(&point))
+                        .unwrap(); //does always exist, due to invariant of R.split()
+                },
+                node  => {
+                    match node.kind {
+                        Bucket {ref mut points, .. } => {
+                            match points.iter().position(|x|{x == point}) {
+                                None => return false,
+                                Some(idx) => {
+                                    points.swap_remove(idx);
+                                    if points.len() as u8 == 0 {
+                                        // Bucket is empty
+                                        // merge(self, point);
+                                    }
+                                    return true
+                                },
+                            }
+                        },
+                        _ => unreachable!()
+                    }
                 }
             }
         }
