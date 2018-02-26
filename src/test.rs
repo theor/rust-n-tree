@@ -33,6 +33,7 @@ fn test_remove() {
     ntree.insert(Vec2 { x: 50.0, y: 50.0 });
     assert!(ntree.remove(&Vec2 { x: 50.0, y: 50.0 }));
     assert_eq!(ntree.nearby(&Vec2 { x: 40.0, y: 40.0 }), Some(&[] as &[_]));
+    assert!(!ntree.remove(&Vec2 { x: 50.0, y: 50.0 }));
 }
 
 #[test]

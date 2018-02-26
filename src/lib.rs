@@ -78,27 +78,34 @@ impl<P:PartialEq, R: Region<P>> NTree<R, P> {
 
     /// Insert a point into the n-tree, returns true if the point
     /// is within the n-tree and was inserted and false if not.
-    pub fn insert(&mut self, point: P) -> bool {
+    fn insert(&mut self, point: P) -> bool {
         if !self.region.contains(&point) { return false }
-
-        match self.kind {
-            Bucket { ref mut points, ref bucket_limit } => {
-                if points.len() as u8 != *bucket_limit {
-                    points.push(point);
-                    return true
-                }
-            },
-            Branch { ref mut subregions } => {
-                match subregions.iter_mut().find(|r| r.contains(&point)) {
-                    Some(ref mut subregion) => return subregion.insert(point),
-                    None => return false
+        let mut current_node = self;
+        loop{
+            match {current_node} {
+                &mut NTree {region: _, kind: Branch { ref mut subregions }} => {
+                    current_node = subregions
+                        .iter_mut()
+                        .find(|sub_node| sub_node.region.contains(&point))
+                        .unwrap(); //does always exist, due to invariant of R.split()
+                },
+                mut node  => {
+                    match node.kind {
+                        Bucket {ref mut points, ref bucket_limit} => {
+                            if points.len() as u8 != *bucket_limit {
+                                points.push(point);
+                                return true;
+                            }
+                        },
+                        _ => unreachable!()
+                    }
+                            
+                    // Bucket is full
+                    split_and_insert(&mut node, point);
+                    return true;
                 }
             }
-        };
-
-        // Bucket is full
-        split_and_insert(self, point);
-        true
+        }
     }
 
     /// remove
